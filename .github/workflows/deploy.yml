@@ -14,19 +14,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. SSH 디렉터리 초기화 및 키 설정
-      - name: Set up SSH key
+      # 2. SSH 디렉터리 초기화
+      - name: Cleanup old SSH directory
         run: |
-          # 혹시 ~/.ssh 가 파일로 남아 있으면 지우고 디렉터리로 생성
-          rm -f ~/.ssh
+          # ~/.ssh 가 파일이거나 디렉터리로 남아 있어도 강제 삭제
+          rm -rf ~/.ssh
           mkdir -p ~/.ssh
-          # 개인키 쓰기
+
+      # 3. 개인키 저장
+      - name: Save SSH private key
+        run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          # 서버 호스트키 등록
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
 
-      # 3. 서버 접속 후 배포 스크립트 실행
+      # 4. 서버 호스트키 등록
+      - name: Add server to known_hosts
+        run: ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+
+      # 5. 원격 서버에 배포 스크립트 실행
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -35,19 +40,11 @@ jobs:
           key_path: ~/.ssh/id_rsa
           port: 22
           script: |
-            # 프로젝트 디렉터리로 이동
+            set -eux
             cd /home/dldbsxo02/Welcome-MJSEC-3rd
-
-            # 최신 코드 가져오기
             git pull origin main
-
-            # (필요시) 가상환경 활성화
             source venv/bin/activate
-
-            # Flask 서비스 재시작
             sudo systemctl daemon-reload
             sudo systemctl restart flask
-
-            # Nginx 문법 검사 및 재시작
             sudo nginx -t
             sudo systemctl reload nginx
