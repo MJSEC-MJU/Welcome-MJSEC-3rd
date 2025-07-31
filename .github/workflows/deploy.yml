@@ -1,6 +1,5 @@
 name: Deploy to Server
 
-# main 브랜치에 푸시될 때 실행
 on:
   push:
     branches:
@@ -11,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) 리포지토리에서 코드 체크아웃
+      # 1) 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -21,18 +20,17 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 3) 서버 호스트키를 known_hosts 에 추가
+      # 3) 서버 호스트키 등록
       - name: Add server to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
 
-      # 4) SSH로 원격 서버에 접속해 배포 스크립트 실행
+      # 4) SSH 접속 후 배포 스크립트 실행
       - name: Deploy to Server
         run: |
           set -eux
-          ssh -o StrictHostKeyChecking=yes \
-              -i ~/.ssh/id_ed25519 \
+          ssh -o StrictHostKeyChecking=no \
               "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" << 'EOF'
             cd /home/dldbsxo02/Welcome-MJSEC-3rd
             git pull origin main
