@@ -41,17 +41,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: SSH & Deploy
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ubuntu
-        key: ${{ secrets.SSH_PRIVATE_KEY }}       # key_path 대신 key 만 사용
-        port: 22
-        script: |
-          cd /home/ubuntu/project
-          docker-compose pull
-          docker-compose up -d
-        debug: true                               # 디버그 로그 켜기
-        strict_host_key_checking: false           # 호스트 키 확인 비활성화
-        timeout: 120
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Disable Strict Host Key Checking
+        run: |
+          cat << 'EOF' > ~/.ssh/config
+          Host *
+            StrictHostKeyChecking no
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: SSH & Deploy
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 120s
+          debug: true
+          script: |
+            cd /home/ubuntu/project
+            docker-compose pull
+            docker-compose up -d
