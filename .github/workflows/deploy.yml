@@ -1,6 +1,5 @@
 name: Deploy to Server
 
-# main 브랜치에 푸시될 때 실행
 on:
   push:
     branches:
@@ -15,12 +14,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. SSH 키 및 known_hosts 설정
+      # 2. SSH 디렉터리 초기화 및 키 설정
       - name: Set up SSH key
         run: |
+          # 혹시 ~/.ssh 가 파일로 남아 있으면 지우고 디렉터리로 생성
+          rm -f ~/.ssh
           mkdir -p ~/.ssh
+          # 개인키 쓰기
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          # 서버 호스트키 등록
           ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
 
       # 3. 서버 접속 후 배포 스크립트 실행
@@ -38,7 +41,7 @@ jobs:
             # 최신 코드 가져오기
             git pull origin main
 
-            # 가상환경 활성화 (필요한 경우)
+            # (필요시) 가상환경 활성화
             source venv/bin/activate
 
             # Flask 서비스 재시작
