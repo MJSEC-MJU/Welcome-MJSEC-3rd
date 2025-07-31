@@ -1,25 +1,44 @@
-- name: Checkout code
-  uses: actions/checkout@v4
+name: Deploy to Server
 
-- name: Start ssh-agent and add key
-  uses: webfactory/ssh-agent@v0.5.3
-  with:
-    ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+# main 브랜치에 푸시될 때 실행
+on:
+  push:
+    branches:
+      - main
 
-- name: Add host to known_hosts
-  run: ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-- name: Deploy to server
-  run: |
-    set -eux
-    # deploy_key 대신 gcp_gh_actions 사용
-    ssh -i ~/.ssh/gcp_gh_actions -o StrictHostKeyChecking=yes \
-        "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" << 'EOF'
-      cd /home/dldbsxo02/Welcome-MJSEC-3rd
-      git pull origin main
-      source venv/bin/activate
-      sudo systemctl daemon-reload
-      sudo systemctl restart flask
-      sudo nginx -t
-      sudo systemctl reload nginx
-    EOF
+    steps:
+      # 1) 리포지토리에서 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2) ssh-agent 에 개인키 로드
+      - name: Start ssh-agent and add key
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 3) 서버 호스트키를 known_hosts 에 추가
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+
+      # 4) SSH로 원격 서버에 접속해 배포 스크립트 실행
+      - name: Deploy to Server
+        run: |
+          set -eux
+          ssh -o StrictHostKeyChecking=yes \
+              -i ~/.ssh/id_ed25519 \
+              "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" << 'EOF'
+            cd /home/dldbsxo02/Welcome-MJSEC-3rd
+            git pull origin main
+            source venv/bin/activate
+            sudo systemctl daemon-reload
+            sudo systemctl restart flask
+            sudo nginx -t
+            sudo systemctl reload nginx
+          EOF
