@@ -10,21 +10,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃
+      # 1. 최신 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 원격 서버에 배포·재시작
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.7
+      # 2. ssh-agent 로 개인키 로드
+      - name: Start ssh-agent and add key
+        uses: webfactory/ssh-agent@v0.5.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          # private key 내용 전체를 직접 전달
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            set -eux
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 3. 서버 호스트키를 known_hosts 에 등록
+      - name: Add host to known_hosts
+        run: ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+
+      # 4. SSH 로 서버에 접속해 배포 스크립트 실행
+      - name: Deploy to server
+        run: |
+          set -eux
+          ssh -o StrictHostKeyChecking=yes \
+              "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" << 'EOF'
             cd /home/dldbsxo02/Welcome-MJSEC-3rd
             git pull origin main
             source venv/bin/activate
@@ -32,3 +37,4 @@ jobs:
             sudo systemctl restart flask
             sudo nginx -t
             sudo systemctl reload nginx
+          EOF
