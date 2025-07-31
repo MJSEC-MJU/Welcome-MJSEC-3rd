@@ -6,10 +6,10 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-la
-      - name: Checkotest
+    runs-on: ubuntu-latest
 
-    steps:ut code
+    steps:
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -58,11 +58,10 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
-      # Ensure SERVER_HOST secret is set to your server's IP or domain
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER_HOST }}        
+          host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
