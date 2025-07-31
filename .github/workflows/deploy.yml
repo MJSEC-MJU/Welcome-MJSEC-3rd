@@ -1,73 +1,39 @@
-name: CI/CD Pipeline
+name: Deploy to Server
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  build-and-push:
+  ssh-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies & Lint/Test
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          # pytest, flake8 등 실행
-
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USER }}/yourapp:latest
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure SSH Key
+      - name: SSH 키 설정
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Disable Strict Host Key Checking
-        run: |
-          cat << 'EOF' > ~/.ssh/config
-          Host *
-            StrictHostKeyChecking no
-          EOF
-          chmod 600 ~/.ssh/config
-
-      - name: SSH & Deploy
+      - name: 서버에 배포 및 서비스 재시작
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          username: ${{ secrets.SERVER_USER }}
+          key_path: ~/.ssh/id_rsa
           port: 22
-          timeout: 120s
-          debug: true
           script: |
-            cd /home/ubuntu/project
-            docker-compose pull
-            docker-compose up -d
+            cd /home/dldbsxo02/Welcome-MJSEC-3rd
+            source venv/bin/activate
+            git pull origin main
+            # Flask 서비스 재시작
+            sudo systemctl daemon-reload
+            sudo systemctl restart flask
+            # Nginx 설정 문법 검사 & 재적용
+            sudo nginx -t
+            sudo systemctl reload nginx
