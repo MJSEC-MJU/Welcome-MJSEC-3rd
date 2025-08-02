@@ -43,7 +43,7 @@ def login():
 
 @app.route('/mjsec')
 def mjsec():
-    # 이제 쿼리가 아니라 쿠키에서 꺼내 봅니다.
+    # 쿠키에서 꺼내는 값.
     key = request.cookies.get('hidden_key', '')
     if key != 'MJSEC_secret':
         abort(403)
@@ -55,6 +55,18 @@ def admin():
     if key != 'MJSEC_secret':
         abort(401)
     return render_template('mjsec.html')
+
+@app.route('/error-handler')
+def nginx_error_handler():
+    # 1) 오직 로컬호스트(127.0.0.1)에서만 접근 허용
+    if request.remote_addr != '127.0.0.1':
+        abort(404)
+
+    # 2) 오류 코드 처리
+    code = int(request.headers.get('X-Original-Status', 500))
+    if 400 <= code < 500:
+        return abort(code)
+    return f"Upstream error: {code}", code
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
